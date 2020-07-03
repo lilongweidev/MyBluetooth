@@ -2,7 +2,6 @@ package com.llw.mybluetooth.adapter;
 
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
-import android.util.Log;
 import android.widget.ImageView;
 
 import androidx.annotation.Nullable;
@@ -14,6 +13,7 @@ import com.llw.mybluetooth.R;
 import java.util.List;
 
 public class DeviceAdapter extends BaseQuickAdapter<BluetoothDevice, BaseViewHolder> {
+
     public DeviceAdapter(int layoutResId, @Nullable List<BluetoothDevice> data) {
         super(layoutResId, data);
     }
@@ -31,6 +31,7 @@ public class DeviceAdapter extends BaseQuickAdapter<BluetoothDevice, BaseViewHol
         ImageView imageView = helper.getView(R.id.iv_device_type);
         getDeviceType(item.getBluetoothClass().getMajorDeviceClass(), imageView);
 
+        //蓝牙设备绑定状态判断
         switch (item.getBondState()) {
             case 12:
                 helper.setText(R.id.tv_bond_state, "已配对");
@@ -43,14 +44,23 @@ public class DeviceAdapter extends BaseQuickAdapter<BluetoothDevice, BaseViewHol
                 break;
         }
 
+        //添加item点击事件
         helper.addOnClickListener(R.id.item_device);
 
     }
 
+    /**
+     * 刷新适配器
+     */
     public void changeBondDevice(){
         notifyDataSetChanged();
     }
 
+    /**
+     * 根据类型设置图标
+     * @param type 类型码
+     * @param imageView 图标
+     */
     private void getDeviceType(int type, ImageView imageView) {
         switch (type) {
             case BluetoothClass.Device.AUDIO_VIDEO_HEADPHONES://耳机

@@ -35,19 +35,19 @@ import java.util.Set;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private static int REQUEST_ENABLE_BLUETOOTH = 1;
+    private static int REQUEST_ENABLE_BLUETOOTH = 1;//请求码
 
-    BluetoothAdapter bluetoothAdapter;
+    BluetoothAdapter bluetoothAdapter;//蓝牙适配器
 
-    private TextView scanDevices;
-    private LinearLayout loadingLay;
-    private RecyclerView rv;
-    private BluetoothReceiver bluetoothReceiver;
+    private TextView scanDevices;//扫描设备
+    private LinearLayout loadingLay;//加载布局
+    private RecyclerView rv;//蓝牙设备展示列表
+    private BluetoothReceiver bluetoothReceiver;//蓝牙广播接收器
 
-    private RxPermissions rxPermissions;
+    private RxPermissions rxPermissions;//权限请求
 
-    DeviceAdapter mAdapter;
-    List<BluetoothDevice> list = new ArrayList<>();
+    DeviceAdapter mAdapter;//蓝牙设备适配器
+    List<BluetoothDevice> list = new ArrayList<>();//数据来源
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,18 +62,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * 初始化蓝牙配置
+     * 初始化控件
      */
-    private void initBlueTooth() {
-        IntentFilter intentFilter = new IntentFilter();//创建一个IntentFilter对象
-        intentFilter.addAction(BluetoothDevice.ACTION_FOUND);//获得扫描结果
-        intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);//绑定状态变化
-        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);//开始扫描
-        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);//扫描结束
-        bluetoothReceiver = new BluetoothReceiver();//实例化广播接收器
-        registerReceiver(bluetoothReceiver, intentFilter);//注册广播接收器
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();//获取蓝牙适配器
+    private void initView() {
+        loadingLay = findViewById(R.id.loading_lay);
+        scanDevices = findViewById(R.id.scan_devices);
+        rv = findViewById(R.id.rv);
+        scanDevices.setOnClickListener(this);
     }
+
 
     /**
      * 检查Android版本
@@ -102,13 +99,53 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * 初始化控件
+     * 初始化蓝牙配置
      */
-    private void initView() {
-        loadingLay = findViewById(R.id.loading_lay);
-        scanDevices = findViewById(R.id.scan_devices);
-        rv = findViewById(R.id.rv);
-        scanDevices.setOnClickListener(this);
+    private void initBlueTooth() {
+        IntentFilter intentFilter = new IntentFilter();//创建一个IntentFilter对象
+        intentFilter.addAction(BluetoothDevice.ACTION_FOUND);//获得扫描结果
+        intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);//绑定状态变化
+        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);//开始扫描
+        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);//扫描结束
+        bluetoothReceiver = new BluetoothReceiver();//实例化广播接收器
+        registerReceiver(bluetoothReceiver, intentFilter);//注册广播接收器
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();//获取蓝牙适配器
+    }
+
+    /**
+     * 消息提示
+     *
+     * @param msg 消息内容
+     */
+    private void showMsg(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
+
+    /**
+     * 控件点击事件
+     *
+     * @param v 视图
+     */
+    @Override
+    public void onClick(View v) {
+        if (v.getId() == R.id.scan_devices) {
+            if (bluetoothAdapter != null) {//是否支持蓝牙
+                if (bluetoothAdapter.isEnabled()) {//打开
+                    //开始扫描周围的蓝牙设备,如果扫描到蓝牙设备，通过广播接收器发送广播
+                    if (mAdapter != null) {//当适配器不为空时，这时就说明已经有数据了，所以清除列表数据，再进行扫描
+                        list.clear();
+                        mAdapter.notifyDataSetChanged();
+                    }
+                    bluetoothAdapter.startDiscovery();
+                } else {//未打开
+                    Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    startActivityForResult(intent, REQUEST_ENABLE_BLUETOOTH);
+                }
+            } else {
+                showMsg("你的设备不支持蓝牙");
+            }
+        }
     }
 
     /**
@@ -131,69 +168,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * 消息提示
-     *
-     * @param msg 消息内容
+     * 广播接收器
      */
-    private void showMsg(String msg) {
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    public void onClick(View v) {
-        if (v.getId() == R.id.scan_devices) {
-            if (bluetoothAdapter != null) {
-                if (bluetoothAdapter.isEnabled()) {//打开
-                    //开始扫描周围的蓝牙设备,如果扫描到蓝牙设备，通过广播接收器发送广播
-                    if (mAdapter != null) {
-                        list.clear();
-                        mAdapter.notifyDataSetChanged();
-                    }
-                    bluetoothAdapter.startDiscovery();
-                } else {//未打开
-                    Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                    startActivityForResult(intent, REQUEST_ENABLE_BLUETOOTH);
-                }
-            } else {
-                showMsg("你的设备不支持蓝牙");
-            }
-        }
-    }
-
-    /**
-     * 获取已绑定设备
-     */
-    private void getBondedDevice() {
-        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-        if (pairedDevices.size() > 0) {//如果获取的结果大于0，则开始逐个解析
-            for (BluetoothDevice device : pairedDevices) {
-                if (list.indexOf(device) == -1) {//防止重复添加
-                    if (device.getName() != null) {//过滤掉设备名称为null的设备
-                        list.add(device);
-                    }
-                }
-            }
-        }
-    }
-
-
-    //广播接收器
     private class BluetoothReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             switch (action) {
                 case BluetoothDevice.ACTION_FOUND://扫描到设备
-                    showDevicesData(context, intent);
+                    showDevicesData(context, intent);//数据展示
                     break;
                 case BluetoothDevice.ACTION_BOND_STATE_CHANGED://设备绑定状态发生改变
-                    mAdapter.changeBondDevice();
+                    mAdapter.changeBondDevice();//刷新适配器
                     break;
                 case BluetoothAdapter.ACTION_DISCOVERY_STARTED://开始扫描
-                    loadingLay.setVisibility(View.VISIBLE);
+                    loadingLay.setVisibility(View.VISIBLE);//显示加载布局
                     break;
                 case BluetoothAdapter.ACTION_DISCOVERY_FINISHED://扫描结束
-                    loadingLay.setVisibility(View.GONE);
+                    loadingLay.setVisibility(View.GONE);//隐藏加载布局
                     break;
             }
         }
@@ -203,8 +195,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     /**
      * 显示蓝牙设备信息
      *
-     * @param context
-     * @param intent
+     * @param context 上下文参数
+     * @param intent  意图
      */
     private void showDevicesData(Context context, Intent intent) {
         getBondedDevice();//获取已绑定的设备
@@ -240,27 +232,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
     }
 
-    //提示弹窗
-    private void showDialog(String dialogTitle, @NonNull DialogInterface.OnClickListener onClickListener) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage(dialogTitle);
-        builder.setPositiveButton("确定", onClickListener);
-        builder.setNegativeButton("取消", null);
-        builder.create().show();
-    }
-
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        //卸载广播接收器
-        unregisterReceiver(bluetoothReceiver);
+    /**
+     * 获取已绑定设备
+     */
+    private void getBondedDevice() {
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        if (pairedDevices.size() > 0) {//如果获取的结果大于0，则开始逐个解析
+            for (BluetoothDevice device : pairedDevices) {
+                if (list.indexOf(device) == -1) {//防止重复添加
+                    if (device.getName() != null) {//过滤掉设备名称为null的设备
+                        list.add(device);
+                    }
+                }
+            }
+        }
     }
 
     /**
      * 创建或者取消匹配
      *
-     * @param type 处理类型 1 匹配  2  取消匹配
+     * @param type   处理类型 1 匹配  2  取消匹配
      * @param device 设备
      */
     private void createOrRemoveBond(int type, BluetoothDevice device) {
@@ -285,6 +276,32 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             e.printStackTrace();
         }
 
+    }
+
+
+    /**
+     * 弹窗
+     *
+     * @param dialogTitle     标题
+     * @param onClickListener 按钮的点击事件
+     */
+    private void showDialog(String dialogTitle, @NonNull DialogInterface.OnClickListener onClickListener) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(dialogTitle);
+        builder.setPositiveButton("确定", onClickListener);
+        builder.setNegativeButton("取消", null);
+        builder.create().show();
+    }
+
+
+    /**
+     * 销毁
+     */
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        //卸载广播接收器
+        unregisterReceiver(bluetoothReceiver);
     }
 
 

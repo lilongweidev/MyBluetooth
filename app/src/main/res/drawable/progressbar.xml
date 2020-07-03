@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android" >
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item>
         <rotate
@@ -8,7 +8,8 @@
             android:pivotX="50.0%"
             android:pivotY="50.0%"
             android:toDegrees="360.0" />
-        <span style="white-space:pre">   </span>    <!-- 其中360.0值越大，转的圈圈越快 -->
+        <!-- 其中360.0值越大，转的圈圈越快 -->
+        <span style="white-space:pre" />
     </item>
 
 </layer-list>
